@@ -17,7 +17,7 @@ def add(instance):
   db.session.add(instance)
 
 def add_all(instances):
-  db.session.add(instances)
+  db.session.add_all(instances)
 
 def delete(instance):
   db.session.delete(instance)
