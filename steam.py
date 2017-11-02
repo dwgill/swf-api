@@ -78,7 +78,6 @@ def game_is_multiplayer(steam_details):
   
   return False
 
-
 def parse_profile_url(profile_url):
   '''
   Given a url of the form

@@ -7,6 +7,8 @@ import steamspy
 
 db = SQLAlchemy()
 
+# == GENERAL METHODS FOR INTERFACING WITH THE DATABASE ==============
+
 def initialize(app):
   db_path = os.getenv('DATABASE_PATH', './data.db')
   app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///{path}'.format(path=db_path)
@@ -28,6 +30,8 @@ def merge(instance):
 def commit():
   db.session.commit()
 
+# == DATABASE TABLE & MODEL DEFINITIONS =============================
+
 game_possessions = db.Table('game_possessions',
   db.Column('steamid', db.Integer, db.ForeignKey('steam_user.steamid')),
   db.Column('appid', db.Integer, db.ForeignKey('steam_game.appid'))
@@ -48,7 +52,7 @@ class SteamGame(db.Model):
   free = db.Column(db.Boolean, nullable=False)
   price = db.Column(db.Integer)
   multiplayer = db.Column(db.Boolean, nullable=False)
-  stale_date = db.Column(db.DateTime, nullable=False)
+  stale_date = db.Column(db.DateTime, nullable=False, index=True)
 
   def __repr__(self):
     return '<SteamGame %r>' % self.name
@@ -186,6 +190,10 @@ class SteamUser(db.Model):
 
     return result
 
+class IrresolvableGame(db.Model):
+  appid = db.Column(db.Integer, primary_key=True, unique=True, nullable=False)
+
+# == UTILITY METHODS ================================================
 def random_timedelta_in_range(low, high):
   rand_delta_in_sec = random.randint(low.total_seconds(), high.total_seconds())
   return datetime.timedelta(seconds=rand_delta_in_sec)

@@ -137,11 +137,20 @@ def get_steam_games(appids):
     )
   )
 
+
   for game in games_in_db:
     appids.remove(game.appid)
     yield game
 
+  if not appids:
+    return
+
+  irresolvable_appids = {irresolvable_game.appid
+                         for irresolvable_game
+                         in db.IrresolvableGame.query.all()}
   for appid in appids:
+    if appid in irresolvable_appids:
+      continue
     steam_details = steam.get_game_details(appid)
     steamspy_details = steamspy.get_app_details(appid)
     steam_game = db.SteamGame.from_game_details(steam_details, steamspy_details)
