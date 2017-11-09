@@ -4,6 +4,7 @@ import os
 import random
 import steam
 import steamspy
+from sqlalchemy import and_
 
 db = SQLAlchemy()
 
@@ -12,6 +13,7 @@ db = SQLAlchemy()
 def initialize(app):
   db_path = os.getenv('DATABASE_PATH', './data.db')
   app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///{path}'.format(path=db_path)
+  app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
   db.init_app(app)
   db.create_all()
 
@@ -30,6 +32,64 @@ def merge(instance):
 def commit():
   db.session.commit()
 
+def get_steam_games_from_appids(appids):
+  today = get_today()
+  appids = without_nongame_appids(appids)
+
+  if appids:
+    games_filtered = 0
+    def games_filter(steam_game):
+      nonlocal games_filtered
+      if games_filtered < 5 and steam_game.stale_date < today:
+        games_filtered += 1
+        return False
+      else:
+        return True
+    
+    games_in_db = filter(games_filter, SteamGame.query.filter(SteamGame.appid.in_(appids)))
+  else:
+    games_in_db = []
+
+  return games_in_db
+
+def get_steam_users_from_vanities(vanityids):
+  today = get_today()
+  if not (isinstance(vanityids, set) or isinstance(vanityids, list)):
+    vanityids = list(vanityids)
+
+  if vanityids:
+    users_in_db = SteamUser.query.filter(
+      and_(
+        SteamUser.vanityid.in_(vanityids),
+        SteamUser.stale_date > today,
+      )
+    ).all()
+  else:
+    users_in_db = []
+  
+  return users_in_db
+
+def get_steam_users_from_steamids(steamids):
+  today = get_today()
+  if not (isinstance(steamids, set) or isinstance(steamids, list)):
+    steamids = list(steamids)
+
+  if steamids:
+    users_in_db = SteamUser.query.filter(
+      and_(
+        SteamUser.steamid.in_(steamids),
+        SteamUser.stale_date > today,
+      )
+    ).all()
+  else:
+    users_in_db = []
+  
+  return users_in_db
+
+def without_nongame_appids(appids):
+  return set(map(int, appids)) - {non_game_app.appid for non_game_app
+                                  in NonGameApp.query}
+
 # == DATABASE TABLE & MODEL DEFINITIONS =============================
 
 game_possessions = db.Table('game_possessions',
@@ -42,9 +102,9 @@ class SteamGame(db.Model):
   name = db.Column(db.Text, nullable=False)
   is_game = db.Column(db.Boolean, nullable=False)
   image_url = db.Column(db.Text)
-  platforms = db.Column(db.Text, nullable=False)
-  tags = db.Column(db.Text, nullable=False)
-  genres = db.Column(db.Text, nullable=False)
+  platforms = db.Column(db.Text)
+  tags = db.Column(db.Text)
+  genres = db.Column(db.Text)
   global_owners = db.Column(db.Integer, nullable=False)
   developer = db.Column(db.Text)
   publisher = db.Column(db.Text)
@@ -94,11 +154,13 @@ class SteamGame(db.Model):
 
     is_multiplayer = steam.game_is_multiplayer(steam_details) or steamspy.game_is_multiplayer(steamspy_details)
     
-    today = datetime.datetime.now(datetime.timezone.utc)
+    today = get_today()
     if stales_soon:
       stale_date = today + datetime.timedelta(days=1)
+    elif not is_multiplayer:
+      stale_date = today + random_timedelta_in_range(datetime.timedelta(weeks=24), datetime.timedelta(weeks=48))
     else:
-      stale_date = today + random_timedelta_in_range(datetime.timedelta(weeks=2), datetime.timedelta(weeks=24))
+      stale_date = today + random_timedelta_in_range(datetime.timedelta(weeks=4), datetime.timedelta(weeks=32))
 
     return cls(
       appid=int(appid),
@@ -122,18 +184,16 @@ class SteamGame(db.Model):
     return {
       'appid': self.appid,
       'name': self.name,
-      'is_game': self.is_game,
       'image_url': self.image_url,
-      'platforms': self.platforms.split(';'),
-      'tags': self.tags.split(';'),
-      'genres': self.genres.split(';'),
+      'platforms': self.platforms.split(';') if self.platforms else [],
+      'tags': self.tags.split(';') if self.tags else [],
+      'genres': self.genres.split(';') if self.genres else [],
       'global_owners': self.global_owners,
       'developer': self.developer,
       'publisher': self.publisher,
       'store_page_url': self.store_page_url,
       'free': self.free,
       'price': self.price,
-      'multiplayer': self.multiplayer,
     }
 
 class SteamUser(db.Model):
@@ -159,7 +219,7 @@ class SteamUser(db.Model):
 
   @classmethod
   def from_user_summary(cls, user_summary, *, steam_games=[]):
-    today = datetime.datetime.now(datetime.timezone.utc)
+    today = get_today()
     stale_date = today + datetime.timedelta(days=3)
     vanityid = steam.get_vanity_from_user_sum(user_summary)
 
@@ -190,7 +250,7 @@ class SteamUser(db.Model):
 
     return result
 
-class IrresolvableGame(db.Model):
+class NonGameApp(db.Model):
   appid = db.Column(db.Integer, primary_key=True, unique=True, nullable=False)
 
 # == UTILITY METHODS ================================================
@@ -198,3 +258,5 @@ def random_timedelta_in_range(low, high):
   rand_delta_in_sec = random.randint(low.total_seconds(), high.total_seconds())
   return datetime.timedelta(seconds=rand_delta_in_sec)
 
+def get_today():
+  return datetime.datetime.now()
