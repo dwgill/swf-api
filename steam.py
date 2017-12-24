@@ -55,6 +55,22 @@ def get_appids_owned_by_user(steamid, include_free=False):
   else:
     raise SteamApiException(api_endpoint, request.status_code, steamid, include_free, result)
 
+def check_appid_against_store(appid):
+  store_app_page_re = re.compile(r'^https?://store.steampowered.com/app/(?P<appid>[0-9]+)(/\S+)?/?$')
+  store_app_page_url = 'http://store.steampowered.com/app/' + str(appid)
+  
+  request = requests.head(store_app_page_url, allow_redirects=False)
+
+  if request.status_code == 200:
+    return appid
+
+  if request.status_code == 302:
+    match = store_app_page_re.match(request.headers.get('location', ''))
+    if match:
+      return match.group('appid')
+
+  return None
+
 def derive_store_page(appid):
   store_homepage_re = re.compile(r'^https?://store.steampowered.com/?$')
   store_page_url = 'http://store.steampowered.com/app/' + str(appid)
@@ -96,7 +112,7 @@ def parse_profile_url(profile_url):
   id_or_profile = urlList[-2] # either 'id' or 'profiles'
   steamid_or_vanityid = urlList[-1]
   if id_or_profile == 'id':
-    return (steamid_or_vanityid, False)
+    return (steamid_or_vanityid.lower(), False)
   elif id_or_profile == 'profiles':
     return (steamid_or_vanityid, True)
   else:

@@ -4,7 +4,7 @@ import os
 import random
 import steam
 import steamspy
-from sqlalchemy import and_
+from sqlalchemy import and_, inspect
 
 db = SQLAlchemy()
 
@@ -24,7 +24,9 @@ def add_all(instances):
   db.session.add_all(instances)
 
 def delete(instance):
-  db.session.delete(instance)
+  insp = inspect(instance, raiseerr=False)
+  if insp and insp.persistent:
+    db.session.delete(instance)
 
 def merge(instance):
   return db.session.merge(instance)

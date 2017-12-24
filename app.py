@@ -96,44 +96,42 @@ def build_game_info_dict(steam_users):
     }
 
 def get_steam_users_and_games(inputs):
-  today = datetime.datetime.now(datetime.timezone.utc)
-
   steam_or_vanity_ids = [get_steam_or_vanity_id_from_input(input)
                          for input in inputs]
 
-  input_steamids = {userid for (userid, is_steamid)
+  input_steamids = {int(userid) for (userid, is_steamid)
                          in steam_or_vanity_ids
                          if is_steamid}
 
-  input_vanityids = {userid for (userid, is_steamid)
+  input_vanityids = {userid.lower() for (userid, is_steamid)
                           in steam_or_vanity_ids
                           if not is_steamid}
 
   db_users_from_vanities = db.get_steam_users_from_vanities(input_vanityids)
 
-  novel_vanityids = input_vanityids - {steam_user.vanityid for steam_user
-                                       in db_users_from_vanities}
+  novel_vanityids = input_vanityids.difference(steam_user.vanityid for steam_user
+                                               in db_users_from_vanities)
 
   resolved_vanityids = map(steam.resolve_vanity_id, novel_vanityids)
 
-  input_steamids.update(resolved_vanityids)
+  input_steamids.update(int(steamid) for steamid in resolved_vanityids)
 
   db_users_from_steamids = db.get_steam_users_from_steamids(input_steamids)
 
-  novel_steamids = input_steamids - {steam_user.steamid for steam_user
-                                     in db_users_from_steamids}
+  novel_steamids = input_steamids.difference(int(steam_user.steamid) for steam_user
+                                             in db_users_from_steamids)
 
   new_steam_user_summaries = map(steam.get_user_summary, novel_steamids)
 
   new_steam_users = map(db.SteamUser.from_user_summary, new_steam_user_summaries)
-  new_steam_users = list(map(db.merge, new_steam_users))
+  new_steam_users = map(db.merge, new_steam_users)
 
   new_steam_users_with_games = []
   for new_steam_user in new_steam_users:
-    owned_appids = steam.get_appids_owned_by_user(new_steam_user.steamid) 
     try:
+      owned_appids = steam.get_appids_owned_by_user(new_steam_user.steamid) 
       steam_games = get_steam_games(owned_appids)
-    except steam.SteamApiException as e:
+    except Exception as e:
       db.delete(new_steam_user)
       raise e
     for steam_game in steam_games:
@@ -151,29 +149,38 @@ def get_steam_games(appids):
 
   for game in games_in_db:
     appids.remove(game.appid)
-    app.logger.info('Found %s in db' % game)
+    #  app.logger.info('Found %s in db' % game)
+    print('Found %s in db' % game)
     result.append(game)
 
   if not appids:
     return result
 
-  for appid in db.without_nongame_appids(appids):
+  appids = db.without_nongame_appids(appids)
+
+  for index, appid in enumerate(appids, start=1):
     try:
       steam_details = steam.get_game_details(appid)
     except steam.SteamApiException as e:
-      if steam.derive_store_page(appid) is None:
+      checked_appid = steam.check_appid_against_store(appid)
+      if not checked_appid or int(appid) != int(checked_appid):
         db.merge(db.NonGameApp(appid=appid)) 
+        #  app.logger.info('Recorded non-game app %s %s/%s' % (appid, index, len(appids)))
+        print('Recorded non-game app %s %s/%s' % (appid, index, len(appids)))
         continue
       else:
         raise e
 
     if steam_details.get('type') not in ('game', 'dlc'):
       db.merge(db.NonGameApp(appid=appid)) 
+      #  app.logger.info('Recorded non-game app %s %s/%s' % (appid, index, len(appids)))
+      print('Recorded non-game app %s %s/%s' % (appid, index, len(appids)))
       continue
 
     steamspy_details = steamspy.get_app_details(appid)
     steam_game = db.SteamGame.from_game_details(steam_details, steamspy_details)
-    app.logger.info('Fetched data for %s' % steam_game)
+    #  app.logger.info('Fetched data for %s %s/%s' % (steam_game, index, len(appids)))
+    print('Fetched data for %s %s/%s' % (steam_game, index, len(appids)))
     result.append(db.merge(steam_game))
 
   db.commit()
@@ -218,7 +225,7 @@ def get_steam_or_vanity_id_from_input(input):
   elif re.match(r'^[0-9a-zA-Z-_]+$', input):
     return (input, False)
   elif input.startswith('steamcommunity.com/'):
-    user_id_or_vanity, is_steamid = parse_profile_url(input)
+    user_id_or_vanity, is_steamid = steam.parse_profile_url(input)
     return (user_id_or_vanity, is_steamid)
   else:
     raise steam.IndeterminableSteamIdException(input)
