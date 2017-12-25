@@ -1,0 +1,43 @@
+{
+  "name": "swf-api",
+  "version": "0.1.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "clean": "rimraf build/",
+    "prebuild": "npm run clean",
+    "build": "tsc -p tsconfig.json",
+    "prewatch": "npm run clean",
+    "watch": "tsc -w -p tsconfig.json",
+    "preserve": "npm run build",
+    "serve": "nodemon build/app.js",
+    "dev": "npm-run-all -p serve watch"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dwgill/swf-api.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dwgill/swf-api/issues"
+  },
+  "homepage": "https://github.com/dwgill/swf-api#readme",
+  "dependencies": {
+    "koa": "^2.4.1",
+    "koa-bodyparser": "^4.2.0",
+    "koa-compose": "^4.0.0",
+    "koa-router": "^7.3.0"
+  },
+  "devDependencies": {
+    "@types/koa": "^2.0.43",
+    "@types/koa-bodyparser": "^3.0.26",
+    "@types/koa-compose": "^3.2.2",
+    "@types/koa-router": "^7.0.27",
+    "nodemon": "^1.14.3",
+    "npm-run-all": "^4.1.2",
+    "rimraf": "^2.6.2",
+    "typescript": "^2.6.2"
+  }
+}
