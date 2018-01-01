@@ -23,8 +23,9 @@ const parseUserIdentifiers = (users: string[]): {
         .value();
 
     const all_invalids = _(invalid_urls as InvalidUserID[])
-        .map(({value}) => value)
+        .map('value')
         .concat(users_invalid)
+        .uniq()
         .value();
 
     const [parsed_steamids, parsed_vanities] = _(parsed_urls as (SteamIDUserID | VanityUserID)[])
@@ -32,13 +33,15 @@ const parseUserIdentifiers = (users: string[]): {
         .value();
 
     const all_steamids = _(parsed_steamids as SteamIDUserID[])
-        .map(({id}) => id)
+        .map('id')
         .concat(users_steamids)
+        .uniq()
         .value();
 
     const all_vanities = _(parsed_vanities as VanityUserID[])
-        .map(({id}) => id)
+        .map('id')
         .concat(users_vanities)
+        .uniq()
         .value();
 
     return {
