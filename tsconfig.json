@@ -5,6 +5,8 @@
         "sourceMap": true,
         "moduleResolution": "node",
         "outDir": "build/",
-        "rootDir": "src/"
+        "rootDir": "src/",
+        "emitDecoratorMetadata": true,
+        "experimentalDecorators": true
     }
 }

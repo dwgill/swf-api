@@ -1,7 +1,6 @@
 import { Middleware } from 'koa';
 import * as Router from 'koa-router';
 import * as compose from 'koa-compose';
-
 import parseUserIds from '../middleware/parseUserIds';
 
 export default (): Middleware => {
@@ -11,8 +10,8 @@ export default (): Middleware => {
         parseUserIds(),
         async (ctx, next) => {
             ctx.body = {
-                steamids: ctx.steamids,
-                vanities: ctx.vanities,
+                steamids: ctx.inputSteamids,
+                vanities: ctx.inputVanities,
             }
         }
     );
