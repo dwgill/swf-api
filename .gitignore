@@ -164,3 +164,4 @@ typings/
 
 # dotenv environment variables file
 .env
+exported_data/
