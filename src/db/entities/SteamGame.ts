@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn, ManyToMany } from 'typeorm';
+import { Entity, Column, PrimaryColumn, ManyToMany, UpdateDateColumn, CreateDateColumn } from 'typeorm';
 import { transformer as stringArrayTransformer } from '../../util/serializeStringArray';
 import SteamUser from './SteamUser';
 
@@ -8,10 +8,13 @@ export default class SteamGame {
     @PrimaryColumn()
     appid: number;
     
-    @Column()
+    @Column({ type: 'text' })
     name: string;
 
-    @Column({ nullable: true })
+    @Column({
+        nullable: true,
+        type: 'text',
+    })
     imageUrl: string;
 
     @Column({
@@ -23,14 +26,14 @@ export default class SteamGame {
 
     @Column({
         nullable: true,
-        type: 'varchar',
+        type: 'text',
         transformer: stringArrayTransformer,
     })
     tags: string[];
 
     @Column({
         nullable: true,
-        type: 'varchar',
+        type: 'text',
         transformer: stringArrayTransformer,
     })
     genres: string[];
@@ -38,13 +41,22 @@ export default class SteamGame {
     @Column()
     numGlobalOwners: number;
 
-    @Column({ nullable: true })
+    @Column({
+        nullable: true,
+        type: 'text',
+    })
     developer: string;
     
-    @Column({ nullable: true })
+    @Column({
+        nullable: true,
+        type: 'text',
+    })
     publisher: string;
 
-    @Column({ nullable: true })
+    @Column({
+        nullable: true,
+        type: 'text',
+    })
     storePageUrl: string;
 
     @Column()
@@ -53,9 +65,12 @@ export default class SteamGame {
     @Column({ nullable: true })
     price: number;
 
-    @Column({ nullable: true })
-    multiplayer: boolean;
-
     @ManyToMany(type => SteamUser, user => user.games)
     owners: SteamUser[];
+
+    @UpdateDateColumn()
+    updatedDate: Date;
+
+    @CreateDateColumn()
+    createdDate: Date;
 }
